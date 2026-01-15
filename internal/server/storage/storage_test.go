@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestNewStoreBadDSN(t *testing.T) {
@@ -42,16 +46,24 @@ func TestStoreCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	gotID, gotUser, gotHash, err := store.GetUserByUsername(ctx, "user1")
+	gotUser, err := store.GetUserByUsername(ctx, "user1")
 	if err != nil {
 		t.Fatalf("get user: %v", err)
 	}
-	if gotID != userID || gotUser != "user1" || gotHash != "hash1" {
+	if gotUser.ID != userID || gotUser.Username != "user1" || gotUser.PasswordHash != "hash1" {
 		t.Fatalf("user mismatch")
 	}
 
 	meta := json.RawMessage(`{"site":"example"}`)
-	itemID, err := store.CreateItem(ctx, userID, "text", meta, []byte("c"), []byte("n"), []byte("e"), []byte("dn"))
+	itemID, err := store.CreateItem(ctx, ItemCreate{
+		UserID:       userID,
+		Type:         "text",
+		Metadata:     meta,
+		Ciphertext:   []byte("c"),
+		PayloadNonce: []byte("n"),
+		EncDEK:       []byte("e"),
+		DekNonce:     []byte("dn"),
+	})
 	if err != nil {
 		t.Fatalf("create item: %v", err)
 	}
@@ -82,33 +94,29 @@ func TestStoreCRUD(t *testing.T) {
 }
 
 func setupSchema(ctx context.Context, store *Store) error {
-	pool := store.pool
-	stmts := []string{
-		"drop table if exists items",
-		"drop table if exists users",
-		"create extension if not exists pgcrypto",
-		`create table users (
-            id uuid primary key default gen_random_uuid(),
-            username text unique not null,
-            password_hash text not null,
-            created_at timestamptz not null default now()
-        )`,
-		`create table items (
-            id uuid primary key default gen_random_uuid(),
-            user_id uuid not null references users(id),
-            type text not null,
-            metadata jsonb not null default '{}'::jsonb,
-            ciphertext bytea not null,
-            payload_nonce bytea not null,
-            enc_dek bytea not null,
-            dek_nonce bytea not null,
-            created_at timestamptz not null default now(),
-            updated_at timestamptz not null default now()
-        )`,
-		"create index items_user_id_idx on items(user_id)",
-		"create index items_created_at_idx on items(created_at)",
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		return err
 	}
-	for _, stmt := range stmts {
+	downPath := filepath.Join(root, "migrations", "001_init.down.sql")
+	upPath := filepath.Join(root, "migrations", "001_init.up.sql")
+	if err := runSQLFile(ctx, store.pool, downPath); err != nil {
+		return err
+	}
+	return runSQLFile(ctx, store.pool, upPath)
+}
+
+func runSQLFile(ctx context.Context, pool *pgxpool.Pool, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	parts := strings.Split(string(data), ";")
+	for _, p := range parts {
+		stmt := strings.TrimSpace(p)
+		if stmt == "" {
+			continue
+		}
 		if _, err := pool.Exec(ctx, stmt); err != nil {
 			return err
 		}

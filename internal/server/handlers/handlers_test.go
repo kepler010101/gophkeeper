@@ -14,6 +14,7 @@ import (
 
 	"gophkeeper/internal/auth"
 	"gophkeeper/internal/server/config"
+	"gophkeeper/internal/server/service"
 	"gophkeeper/internal/server/storage"
 )
 
@@ -49,29 +50,29 @@ func (e *errStore) CreateUser(ctx context.Context, username, passwordHash string
 	return "u1", nil
 }
 
-func (e *errStore) GetUserByUsername(ctx context.Context, username string) (string, string, string, error) {
+func (e *errStore) GetUserByUsername(ctx context.Context, username string) (*storage.User, error) {
 	if e.getUserErr != nil {
-		return "", "", "", e.getUserErr
+		return nil, e.getUserErr
 	}
-	return "u1", username, "hash", nil
+	return &storage.User{ID: "u1", Username: username, PasswordHash: "hash"}, nil
 }
 
-func (e *errStore) CreateItem(ctx context.Context, userID, typ string, metadata json.RawMessage, ciphertext, payloadNonce, encDEK, dekNonce []byte) (string, error) {
+func (e *errStore) CreateItem(ctx context.Context, item storage.ItemCreate) (string, error) {
 	if e.createItemErr != nil {
 		return "", e.createItemErr
 	}
 	return "i1", nil
 }
 
-func (e *errStore) ListItems(ctx context.Context, userID string) ([]storage.ItemMeta, error) {
+func (e *errStore) ListItems(ctx context.Context, userID string) ([]*storage.ItemMeta, error) {
 	return nil, nil
 }
 
-func (e *errStore) GetItem(ctx context.Context, userID, itemID string) (storage.ItemFull, error) {
+func (e *errStore) GetItem(ctx context.Context, userID, itemID string) (*storage.ItemFull, error) {
 	if e.getItemErr != nil {
-		return storage.ItemFull{}, e.getItemErr
+		return nil, e.getItemErr
 	}
-	return e.getItem, nil
+	return &e.getItem, nil
 }
 
 func (e *errStore) DeleteItem(ctx context.Context, userID, itemID string) error {
@@ -95,40 +96,40 @@ func (m *mockStore) CreateUser(ctx context.Context, username, passwordHash strin
 	return id, nil
 }
 
-func (m *mockStore) GetUserByUsername(ctx context.Context, username string) (string, string, string, error) {
+func (m *mockStore) GetUserByUsername(ctx context.Context, username string) (*storage.User, error) {
 	u, ok := m.users[username]
 	if !ok {
-		return "", "", "", storage.ErrNotFound
+		return nil, storage.ErrNotFound
 	}
-	return u.id, u.username, u.hash, nil
+	return &storage.User{ID: u.id, Username: u.username, PasswordHash: u.hash}, nil
 }
 
-func (m *mockStore) CreateItem(ctx context.Context, userID, typ string, metadata json.RawMessage, ciphertext, payloadNonce, encDEK, dekNonce []byte) (string, error) {
+func (m *mockStore) CreateItem(ctx context.Context, item storage.ItemCreate) (string, error) {
 	m.itemSeq++
 	id := "i" + strconv.Itoa(m.itemSeq)
-	item := storage.ItemFull{
+	fullItem := storage.ItemFull{
 		ID:           id,
-		UserID:       userID,
-		Type:         typ,
-		Metadata:     metadata,
-		Ciphertext:   ciphertext,
-		PayloadNonce: payloadNonce,
-		EncDEK:       encDEK,
-		DekNonce:     dekNonce,
+		UserID:       item.UserID,
+		Type:         item.Type,
+		Metadata:     item.Metadata,
+		Ciphertext:   item.Ciphertext,
+		PayloadNonce: item.PayloadNonce,
+		EncDEK:       item.EncDEK,
+		DekNonce:     item.DekNonce,
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
-	m.items[id] = item
-	m.userItems[userID] = append(m.userItems[userID], id)
+	m.items[id] = fullItem
+	m.userItems[item.UserID] = append(m.userItems[item.UserID], id)
 	return id, nil
 }
 
-func (m *mockStore) ListItems(ctx context.Context, userID string) ([]storage.ItemMeta, error) {
+func (m *mockStore) ListItems(ctx context.Context, userID string) ([]*storage.ItemMeta, error) {
 	ids := m.userItems[userID]
-	items := make([]storage.ItemMeta, 0, len(ids))
+	items := make([]*storage.ItemMeta, 0, len(ids))
 	for _, id := range ids {
 		item := m.items[id]
-		items = append(items, storage.ItemMeta{
+		items = append(items, &storage.ItemMeta{
 			ID:        item.ID,
 			Type:      item.Type,
 			Metadata:  item.Metadata,
@@ -139,12 +140,12 @@ func (m *mockStore) ListItems(ctx context.Context, userID string) ([]storage.Ite
 	return items, nil
 }
 
-func (m *mockStore) GetItem(ctx context.Context, userID, itemID string) (storage.ItemFull, error) {
+func (m *mockStore) GetItem(ctx context.Context, userID, itemID string) (*storage.ItemFull, error) {
 	item, ok := m.items[itemID]
 	if !ok || item.UserID != userID {
-		return storage.ItemFull{}, storage.ErrNotFound
+		return nil, storage.ErrNotFound
 	}
-	return item, nil
+	return &item, nil
 }
 
 func (m *mockStore) DeleteItem(ctx context.Context, userID, itemID string) error {
@@ -172,7 +173,8 @@ func newTestServer(t *testing.T, payloadMax int64) (*httptest.Server, *mockStore
 		PayloadMaxBytes: payloadMax,
 	}
 	masterKey := bytes.Repeat([]byte{1}, 32)
-	handler := NewServer(cfg, store, masterKey)
+	svc := service.New(store, masterKey, cfg.JWTSecret)
+	handler := NewServer(cfg, svc)
 	return httptest.NewServer(handler), store
 }
 
@@ -183,7 +185,8 @@ func newTestServerWithStore(t *testing.T, store storage.StoreAPI) *httptest.Serv
 		PayloadMaxBytes: 10 * 1024 * 1024,
 	}
 	masterKey := bytes.Repeat([]byte{1}, 32)
-	handler := NewServer(cfg, store, masterKey)
+	svc := service.New(store, masterKey, cfg.JWTSecret)
+	handler := NewServer(cfg, svc)
 	return httptest.NewServer(handler)
 }
 

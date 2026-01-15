@@ -1,4 +1,3 @@
-// Package crypto provides payload encryption helpers.
 package crypto
 
 import (
@@ -10,7 +9,7 @@ import (
 	"os"
 )
 
-// LoadMasterKeyFromEnv loads a base64 master key from env.
+// LoadMasterKeyFromEnv loads and decodes a base64 master key from env.
 func LoadMasterKeyFromEnv(envName string) ([]byte, error) {
 	val := os.Getenv(envName)
 	if val == "" {
@@ -26,7 +25,7 @@ func LoadMasterKeyFromEnv(envName string) ([]byte, error) {
 	return decoded, nil
 }
 
-// EncryptPayload encrypts plaintext and wraps the per-item key.
+// EncryptPayload encrypts plaintext and returns ciphertext and nonces.
 func EncryptPayload(masterKey []byte, plaintext []byte) (ciphertext, payloadNonce, encDEK, dekNonce []byte, err error) {
 	if len(masterKey) != 32 {
 		return nil, nil, nil, nil, fmt.Errorf("invalid master key length: %d", len(masterKey))
@@ -60,7 +59,7 @@ func EncryptPayload(masterKey []byte, plaintext []byte) (ciphertext, payloadNonc
 	return ciphertext, payloadNonce, encDEK, dekNonce, nil
 }
 
-// DecryptPayload decrypts ciphertext using the wrapped key.
+// DecryptPayload decrypts payload using master key and nonces.
 func DecryptPayload(masterKey []byte, ciphertext, payloadNonce, encDEK, dekNonce []byte) ([]byte, error) {
 	if len(masterKey) != 32 {
 		return nil, fmt.Errorf("invalid master key length: %d", len(masterKey))

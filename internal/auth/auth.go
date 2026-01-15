@@ -1,4 +1,3 @@
-// Package auth handles password hashing and JWT.
 package auth
 
 import (
@@ -10,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// HashPassword returns a bcrypt hash of pw.
+// HashPassword hashes a password with bcrypt.
 func HashPassword(pw string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	if err != nil {
@@ -19,12 +18,12 @@ func HashPassword(pw string) (string, error) {
 	return string(hash), nil
 }
 
-// VerifyPassword checks pw against a bcrypt hash.
+// VerifyPassword checks a plaintext password against a hash.
 func VerifyPassword(hash, pw string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pw)) == nil
 }
 
-// GenerateJWT builds a signed token for a user.
+// GenerateJWT creates a signed JWT for userID.
 func GenerateJWT(userID string, secret string, ttl time.Duration) (string, error) {
 	if userID == "" {
 		return "", fmt.Errorf("empty user id")
@@ -46,7 +45,7 @@ func GenerateJWT(userID string, secret string, ttl time.Duration) (string, error
 	return signed, nil
 }
 
-// ValidateJWT parses and validates a token and returns user id.
+// ValidateJWT validates token and returns userID.
 func ValidateJWT(tokenStr, secret string) (string, error) {
 	if tokenStr == "" {
 		return "", fmt.Errorf("empty token")
@@ -75,12 +74,12 @@ func ValidateJWT(tokenStr, secret string) (string, error) {
 
 type ctxKey string
 
-// WithUserID stores user id in context.
+// WithUserID stores userID in context.
 func WithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, ctxKey("user_id"), userID)
 }
 
-// UserIDFromContext reads user id from context.
+// UserIDFromContext reads userID from context.
 func UserIDFromContext(ctx context.Context) (string, bool) {
 	val := ctx.Value(ctxKey("user_id"))
 	if val == nil {

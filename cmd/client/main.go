@@ -1,4 +1,3 @@
-// Package main is the CLI client.
 package main
 
 import (
@@ -538,8 +537,11 @@ func parseFlags(fs *flag.FlagSet, args []string) {
 	}
 }
 
-func resolveServerURL(cfg cache.Config, serverFlag string) (cache.Config, string, bool) {
+func resolveServerURL(cfg *cache.Config, serverFlag string) (*cache.Config, string, bool) {
 	changed := false
+	if cfg == nil {
+		cfg = &cache.Config{}
+	}
 	serverURL := cfg.ServerURL
 	if serverFlag != "" {
 		serverURL = serverFlag

@@ -1,4 +1,3 @@
-// Package config loads server settings.
 package config
 
 import (
@@ -19,7 +18,7 @@ type ServerConfig struct {
 	PayloadMaxBytes int64
 }
 
-// LoadServerConfigFromEnv reads config from environment variables.
+// LoadServerConfigFromEnv loads config from env vars.
 func LoadServerConfigFromEnv() (ServerConfig, error) {
 	cfg := ServerConfig{
 		Addr:            ":8443",

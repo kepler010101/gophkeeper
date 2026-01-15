@@ -14,7 +14,7 @@ func TestConfigLoadSave(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
 
-	cfg := Config{ServerURL: "https://localhost:8443", Token: "t1"}
+	cfg := &Config{ServerURL: "https://localhost:8443", Token: "t1"}
 	err := SaveConfig(cfg)
 	if err != nil {
 		t.Fatalf("save config: %v", err)

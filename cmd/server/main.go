@@ -1,4 +1,3 @@
-// Package main is the server entry point.
 package main
 
 import (
@@ -16,6 +15,7 @@ import (
 	"gophkeeper/internal/crypto"
 	"gophkeeper/internal/server/config"
 	"gophkeeper/internal/server/handlers"
+	"gophkeeper/internal/server/service"
 	"gophkeeper/internal/server/storage"
 	"gophkeeper/internal/version"
 )
@@ -47,11 +47,15 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("store error: %w", err)
 	}
+	svc := service.New(store, masterKey, cfg.JWTSecret)
 	log.Printf("config addr=%s db=%s tls_cert=%s tls_key=%s payload_max=%d", cfg.Addr, sanitizeDBURL(cfg.DatabaseURL), cfg.TLSCertPath, cfg.TLSKeyPath, cfg.PayloadMaxBytes)
-	handler := handlers.NewServer(cfg, store, masterKey)
+	handler := handlers.NewServer(cfg, svc)
 	srv := &http.Server{
-		Addr:    cfg.Addr,
-		Handler: handler,
+		Addr:         cfg.Addr,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 	errCh := make(chan error, 1)
 	go func() {
@@ -66,10 +70,10 @@ func run() error {
 	select {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = srv.Shutdown(shutdownCtx)
+		err := srv.Shutdown(shutdownCtx)
 		cancel()
 		store.Close()
-		return nil
+		return err
 	case err := <-errCh:
 		store.Close()
 		if errors.Is(err, http.ErrServerClosed) {
