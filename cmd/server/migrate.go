@@ -4,91 +4,53 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
 func applyMigrations(ctx context.Context, databaseURL, dir string) error {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
-		return fmt.Errorf("connect db: %w", err)
+		return fmt.Errorf("parse db url: %w", err)
 	}
-	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
+	cfg.ConnectTimeout = 5 * time.Second
+	db := stdlib.OpenDB(*cfg)
+	defer db.Close()
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
+
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := db.PingContext(pingCtx); err != nil {
 		return fmt.Errorf("ping db: %w", err)
 	}
-
-	_, err = pool.Exec(ctx, `create table if not exists schema_migrations (
-        filename text primary key,
-        applied_at timestamptz not null default now()
-    )`)
+	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
+		return fmt.Errorf("migrations path: %w", err)
 	}
-
-	entries, err := os.ReadDir(dir)
+	path := filepath.ToSlash(absDir)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		return fmt.Errorf("read migrations: %w", err)
+		return fmt.Errorf("migrate driver: %w", err)
 	}
-	var files []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if strings.HasSuffix(name, ".up.sql") {
-			files = append(files, name)
-		}
+	m, err := migrate.NewWithDatabaseInstance("file://"+path, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("migrate init: %w", err)
 	}
-	sort.Strings(files)
-
-	for _, name := range files {
-		var exists bool
-		err := pool.QueryRow(ctx, "select true from schema_migrations where filename = $1", name).Scan(&exists)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("check migration %s: %w", name, err)
-		}
-		if exists {
-			continue
-		}
-
-		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read migration %s: %w", name, err)
-		}
-
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			return fmt.Errorf("begin migration %s: %w", name, err)
-		}
-
-		stmts := strings.Split(string(data), ";")
-		for _, stmt := range stmts {
-			stmt = strings.TrimSpace(stmt)
-			if stmt == "" {
-				continue
-			}
-			if _, err := tx.Exec(ctx, stmt); err != nil {
-				_ = tx.Rollback(ctx)
-				return fmt.Errorf("exec migration %s: %w", name, err)
-			}
-		}
-
-		_, err = tx.Exec(ctx, "insert into schema_migrations (filename) values ($1)", name)
-		if err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("record migration %s: %w", name, err)
-		}
-
-		if err := tx.Commit(ctx); err != nil {
-			return fmt.Errorf("commit migration %s: %w", name, err)
-		}
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("migrate up: %w", err)
 	}
 	return nil
 }

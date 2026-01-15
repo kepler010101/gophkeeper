@@ -201,12 +201,13 @@ func TestApplyMigrations(t *testing.T) {
 		t.Fatalf("pool: %v", err)
 	}
 	defer pool.Close()
-	var count int
-	if err := pool.QueryRow(context.Background(), "select count(*) from schema_migrations").Scan(&count); err != nil {
-		t.Fatalf("count: %v", err)
+	var version int
+	var dirty bool
+	if err := pool.QueryRow(context.Background(), "select version, dirty from schema_migrations").Scan(&version, &dirty); err != nil {
+		t.Fatalf("version: %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("unexpected count: %d", count)
+	if version != 2 || dirty {
+		t.Fatalf("unexpected state")
 	}
 	_, _ = pool.Exec(context.Background(), "drop table if exists t1")
 	_, _ = pool.Exec(context.Background(), "drop table if exists t2")

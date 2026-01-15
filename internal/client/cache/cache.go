@@ -1,4 +1,3 @@
-// Package cache manages local client state.
 package cache
 
 import (
@@ -9,16 +8,13 @@ import (
 	"time"
 )
 
-// ErrNotFound is returned when cache entry is missing.
 var ErrNotFound = errors.New("not found")
 
-// Config stores server URL and JWT token.
 type Config struct {
 	ServerURL string `json:"server_url"`
 	Token     string `json:"token"`
 }
 
-// CachedMeta stores cached item metadata.
 type CachedMeta struct {
 	ID        string          `json:"id"`
 	Type      string          `json:"type"`
@@ -27,28 +23,29 @@ type CachedMeta struct {
 	LocalPath string          `json:"local_path,omitempty"`
 }
 
-// LoadConfig loads config from disk.
-func LoadConfig() (Config, error) {
+func LoadConfig() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Config{}, nil
+			return &Config{}, nil
 		}
-		return Config{}, err
+		return nil, err
 	}
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return Config{}, err
+		return nil, err
 	}
-	return cfg, nil
+	return &cfg, nil
 }
 
-// SaveConfig writes config to disk.
-func SaveConfig(cfg Config) error {
+func SaveConfig(cfg *Config) error {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	if err := EnsureDirs(); err != nil {
 		return err
 	}
@@ -63,7 +60,6 @@ func SaveConfig(cfg Config) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-// EnsureDirs creates base directories for config and cache.
 func EnsureDirs() error {
 	base, err := baseDir()
 	if err != nil {
@@ -78,7 +74,6 @@ func EnsureDirs() error {
 	return os.MkdirAll(filepath.Join(base, "cache", "items"), 0700)
 }
 
-// CachePutItem stores payload and updates index.
 func CachePutItem(id string, payloadBytes []byte, meta CachedMeta) error {
 	if err := EnsureDirs(); err != nil {
 		return err
@@ -114,7 +109,6 @@ func CachePutItem(id string, payloadBytes []byte, meta CachedMeta) error {
 	return saveIndex(list)
 }
 
-// CacheListItems loads cached metadata list.
 func CacheListItems() ([]CachedMeta, error) {
 	path, err := indexPath()
 	if err != nil {
@@ -134,7 +128,6 @@ func CacheListItems() ([]CachedMeta, error) {
 	return list, nil
 }
 
-// CacheSaveList overwrites cached metadata list.
 func CacheSaveList(list []CachedMeta) error {
 	if err := EnsureDirs(); err != nil {
 		return err
@@ -142,7 +135,6 @@ func CacheSaveList(list []CachedMeta) error {
 	return saveIndex(list)
 }
 
-// CacheGetItem loads payload and metadata by id.
 func CacheGetItem(id string) ([]byte, CachedMeta, error) {
 	list, err := CacheListItems()
 	if err != nil {

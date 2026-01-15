@@ -266,7 +266,7 @@ func TestCLIListOffline(t *testing.T) {
 		t.Fatalf("cache put: %v", err)
 	}
 	cfg := cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}
-	if err := cache.SaveConfig(cfg); err != nil {
+	if err := cache.SaveConfig(&cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	runList([]string{})
@@ -280,7 +280,7 @@ func TestCLIGetOffline(t *testing.T) {
 		t.Fatalf("cache put: %v", err)
 	}
 	cfg := cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}
-	if err := cache.SaveConfig(cfg); err != nil {
+	if err := cache.SaveConfig(&cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	outPath := filepath.Join(dir, "out.bin")
@@ -302,7 +302,7 @@ func TestListNoTokenCache(t *testing.T) {
 		t.Fatalf("cache put: %v", err)
 	}
 	cfg := cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}
-	if err := cache.SaveConfig(cfg); err != nil {
+	if err := cache.SaveConfig(&cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	runList([]string{})
@@ -316,7 +316,7 @@ func TestGetNoTokenCache(t *testing.T) {
 		t.Fatalf("cache put: %v", err)
 	}
 	cfg := cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}
-	if err := cache.SaveConfig(cfg); err != nil {
+	if err := cache.SaveConfig(&cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	runGet([]string{"--id", "id1"})
@@ -330,7 +330,7 @@ func TestOTPFromCache(t *testing.T) {
 		t.Fatalf("cache put: %v", err)
 	}
 	cfg := cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}
-	if err := cache.SaveConfig(cfg); err != nil {
+	if err := cache.SaveConfig(&cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	out := captureStdout(func() {
@@ -369,7 +369,7 @@ func TestRunPutErrors(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -395,7 +395,7 @@ func TestRunOTPNoID(t *testing.T) {
 func TestRunListEmptyCache(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -406,7 +406,7 @@ func TestRunListEmptyCache(t *testing.T) {
 func TestRunGetCacheMiss(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: ""}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -468,7 +468,7 @@ func TestRunPutInvalidResponse(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -489,7 +489,7 @@ func TestRunListInvalidResponse(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -510,7 +510,7 @@ func TestRunGetInvalidResponse(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -531,7 +531,7 @@ func TestRunDeleteInvalidResponse(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -558,7 +558,7 @@ func TestRunLoginOffline(t *testing.T) {
 func TestRunPutOffline(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -569,7 +569,7 @@ func TestRunPutOffline(t *testing.T) {
 func TestRunDeleteOffline(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -580,7 +580,7 @@ func TestRunDeleteOffline(t *testing.T) {
 func TestRunSyncOffline(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: "http://127.0.0.1:1", Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -601,7 +601,7 @@ func TestRunGetInvalidPayload(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -622,7 +622,7 @@ func TestRunOTPInvalidPayload(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -647,7 +647,7 @@ func TestRunSyncInvalidPayload(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("GOPHKEEPER_HOME", dir)
-	if err := cache.SaveConfig(cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
+	if err := cache.SaveConfig(&cache.Config{ServerURL: ts.URL, Token: "t"}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 	expectFail(t, func() {
@@ -784,17 +784,17 @@ func TestValidType(t *testing.T) {
 }
 
 func TestResolveServerURL(t *testing.T) {
-	cfg := cache.Config{}
+	cfg := &cache.Config{}
 	_, urlStr, changed := resolveServerURL(cfg, "")
 	if changed || urlStr != "https://localhost:8443" {
 		t.Fatalf("unexpected default url")
 	}
-	cfg = cache.Config{ServerURL: "https://old"}
+	cfg = &cache.Config{ServerURL: "https://old"}
 	_, urlStr, changed = resolveServerURL(cfg, "")
 	if changed || urlStr != "https://old" {
 		t.Fatalf("unexpected stored url")
 	}
-	cfg = cache.Config{ServerURL: "https://old"}
+	cfg = &cache.Config{ServerURL: "https://old"}
 	cfg, urlStr, changed = resolveServerURL(cfg, "https://new")
 	if !changed || cfg.ServerURL != "https://new" || urlStr != "https://new" {
 		t.Fatalf("unexpected override")

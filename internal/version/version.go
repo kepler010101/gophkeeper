@@ -1,13 +1,12 @@
-// Package version holds build metadata.
 package version
 
-// Version is the build version string.
+// Version is the build version.
 var Version = "dev"
 
 // BuildDate is the build timestamp.
 var BuildDate = "unknown"
 
-// String returns a formatted version line.
+// String formats version info.
 func String() string {
 	return "gophkeeper version=" + Version + " buildDate=" + BuildDate
 }
